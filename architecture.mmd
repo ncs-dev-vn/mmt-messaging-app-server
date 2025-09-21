@@ -1,0 +1,42 @@
+---
+config:
+  theme: neo
+  layout: elk
+---
+flowchart TD
+ subgraph Clients["Clients"]
+        C1["Client 1 (Connects)"]
+        C2["Client 2 (Connects)"]
+        C3["Client 3 (Connects)"]
+  end
+ subgraph subGraph1["Shared State (Memory)"]
+        C_List["Active Clients List"]
+        W_Queue["Waiting Queue"]
+  end
+ subgraph subGraph2["Connection Handlers (Threads)"]
+        H1("Handler for Client 1")
+        H2("Handler for Client 2")
+        H3("Handler for Client 3")
+  end
+ subgraph subGraph3["Chat Server Application"]
+        A["Server Core <br> (Main Thread)"]
+        subGraph1
+        subGraph2
+  end
+    A -- (1) Spawns Handler --> H1 & H2 & H3
+    H1 -- (2) Checks state (Space available) --> C_List
+    H1 -- (3) Joins Active Chat --> C_List
+    H3 -- (2) Checks state (Room is full) --> C_List
+    H3 -- (3) Enters Waiting Queue --> W_Queue
+    H2 -- (4) Client Disconnects --> H2
+    H2 -- (5) Leaves Active Chat --> C_List
+    H2 -- (6) Signals an opening --> W_Queue
+    W_Queue -- (7) Promotes next client --> H3
+    H3 -- (8) Joins Active Chat --> C_List
+    C1 <--> H1
+    C2 <--> H2
+    C3 <--> H3
+    C_List <--> H1 & H2
+    C1 -- Connects to --> A
+    C2 -- Connects to --> A
+    C3 -- Connects to --> A
