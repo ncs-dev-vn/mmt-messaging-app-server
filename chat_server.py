@@ -18,7 +18,8 @@ class ChatServer:
 
         self.active_clients = []
         self.waiting_queue = []
-        self.lock = threading.Lock()
+        # A Condition object has its own Lock, which can be used with a 'with' statement
+        self.condition = threading.Condition()
 
     def start(self):
         """Binds the server to the address and starts listening for connections."""
@@ -48,7 +49,7 @@ class ChatServer:
 
     def broadcast(self, message, source_client=None):
         """Broadcasts a message to all active clients."""
-        with self.lock:
+        with self.condition:
             for client in self.active_clients:
                 if client is not source_client:
                     try:
@@ -59,35 +60,13 @@ class ChatServer:
 
     def _remove_client(self, client_handler):
         """Removes a client from the active or waiting list."""
-        with self.lock:
+        with self.condition:
             if client_handler in self.active_clients:
                 self.active_clients.remove(client_handler)
                 print(f"[*] Client {client_handler.client_address} disconnected. Active clients: {len(self.active_clients)}")
-                self._promote_from_waiting_queue()
+                # A slot has opened up. Notify one waiting thread so it can try to join.
+                self.condition.notify()
             elif client_handler in self.waiting_queue:
                 self.waiting_queue.remove(client_handler)
                 print(f"[*] Client {client_handler.client_address} removed from waiting queue.")
             client_handler.client_socket.close()
-
-    def _promote_from_waiting_queue(self):
-        """
-        Promotes the next available and connected client from the waiting queue.
-        """
-        while self.waiting_queue:
-            next_client = self.waiting_queue.pop(0)
-            try:
-                # Ping the client to see if they are still connected
-                next_client.client_socket.send(b'\n')
-                # If the send is successful, promote them
-                self.active_clients.append(next_client)
-                next_client.is_active = True
-                print(f"[*] Client {next_client.client_address} promoted from waiting queue. Active clients: {len(self.active_clients)}")
-                next_client.client_socket.send("[PROMOTED] You are now connected to the chat.\n".encode('utf-8'))
-                # Found a live client, break the loop
-                break
-            except socket.error:
-                # If the send fails, the client is disconnected
-                print(f"[*] Client {next_client.client_address} from waiting queue is disconnected. Removing.")
-                next_client.client_socket.close()
-                # Continue to the next client in the queue
-
