@@ -1,0 +1,32 @@
+
+
+
+
+
+
+
+# Multi-user Chat Application Dependencies
+
+# This project only uses Python built-in libraries:
+# - socket: For network communication
+# - threading: For handling multiple clients concurrently
+# - sys: For system operations
+
+# No external dependencies required for core functionality
+
+# Optional development dependencies (uncomment if needed):
+# pytest>=7.0.0          # For unit testing
+# black>=22.0.0          # For code formatting
+# flake8>=4.0.0          # For linting
+# mypy>=0.950            # For type checking
+
+# For building executable files (distribution):
+# pyinstaller>=5.0.0     # Create .exe/.app files for end users
+
+# Optional logging enhancement:
+# colorlog>=6.0.0        # For colored console logging
+
+# Optional GUI dependencies (for future GUI client):
+# tkinter                # Built-in GUI library (already included in Python)
+# PyQt5>=5.15.0         # Alternative GUI framework
+# customtkinter>=5.0.0  # Modern tkinter styling

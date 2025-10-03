@@ -1,16 +1,27 @@
 
 import socket
 import threading
-from client_handler import ClientHandler
+try:
+    from .client_handler import ClientHandler
+except ImportError:
+    # For standalone testing
+    from client_handler import ClientHandler
 
 class ChatServer:
     """
     A multi-threaded chat server using Python's standard socket and threading libraries.
+    
+    Supports flexible configuration:
+    - host: None for smart default, '127.0.0.1' for local, '0.0.0.0' for network
+    - port: None for default 12345
+    - max_clients: None for default 5
+    - Environment variables: CHAT_SERVER_HOST, CHAT_NETWORK_MODE
     """
-    def __init__(self, host='127.0.0.1', port=12345, max_clients=2, buffer_size=1024):
-        self.host = host
-        self.port = port
-        self.max_clients = max_clients
+    def __init__(self, host=None, port=None, max_clients=None, buffer_size=1024):
+        # Use flexible defaults instead of hard-coded values
+        self.host = host if host is not None else self._get_default_host()
+        self.port = port if port is not None else 12345
+        self.max_clients = max_clients if max_clients is not None else 5  # Increased default
         self.buffer_size = buffer_size
         
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -20,6 +31,26 @@ class ChatServer:
         self.waiting_queue = []
         # A Condition object has its own Lock, which can be used with a 'with' statement
         self.condition = threading.Condition()
+    
+    def _get_default_host(self):
+        """
+        Get default host based on environment or smart detection.
+        Returns appropriate default for server binding.
+        """
+        import os
+        
+        # Check environment variable first
+        env_host = os.getenv('CHAT_SERVER_HOST')
+        if env_host:
+            return env_host
+        
+        # Check if we want network mode by default
+        network_mode = os.getenv('CHAT_NETWORK_MODE', 'false').lower()
+        if network_mode in ['true', '1', 'yes', 'on']:
+            return '0.0.0.0'  # Allow external connections
+        
+        # Default to localhost for security
+        return '127.0.0.1'
 
     def start(self):
         """Binds the server to the address and starts listening for connections."""
