@@ -1,5 +1,5 @@
 """
-Cấu hình thiết lập cho MMT Messaging Server
+Cấu hình thiết lập cho Messaging Server
 """
 
 from setuptools import setup, find_packages
@@ -8,7 +8,7 @@ with open("doc/README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="mmt-messaging-server",
+    name="messaging-server",
     version="1.0.0",
     author="MMT Project Team",
     description="A simple and robust Python messaging server",

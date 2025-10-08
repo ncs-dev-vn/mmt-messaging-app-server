@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-MMT Messaging App Server - Điểm Khởi Động
+Messaging App Server - Nơi bắt đầu chạy
 
-Đây là điểm khởi động chính cho ứng dụng máy chủ tin nhắn MMT.
+Đây là điểm khởi chạy chính cho ứng dụng máy chủ tin nhắn.
 Chạy file này để khởi động máy chủ.
 """
 
@@ -18,7 +18,7 @@ def main():
     """
     Điểm khởi động chính cho máy chủ tin nhắn.
     """
-    print("Đang khởi động MMT Messaging Server...")
+    print("Đang khởi động Messaging Server...")
     print("Nhấn Ctrl+C để dừng máy chủ.")
     print("-" * 50)
     

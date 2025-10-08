@@ -49,7 +49,7 @@ class ChatServer:
                 print(f"[!] Lỗi chấp nhận kết nối: {e}")
 
     def broadcast(self, message, source_client=None):
-        """Gửi tin nhắn đến tất cả khách hàng đang hoạt động."""
+        """Gửi tin nhắn đến tất cả client đang hoạt động."""
         with self.condition:
             for client in self.active_clients:
                 if client is not source_client:
@@ -111,7 +111,7 @@ class ChatServer:
             return self.username_registry.get(username)
 
     def _remove_client(self, client_handler):
-        """Xoá khách hàng khỏi danh sách đang hoạt động hoặc chờ."""
+        """Xoá client khỏi danh sách đang hoạt động hoặc chờ."""
         with self.condition:
             if client_handler in self.active_clients:
                 self.active_clients.remove(client_handler)

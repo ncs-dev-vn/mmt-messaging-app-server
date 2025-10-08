@@ -15,11 +15,9 @@ class ClientHandler(threading.Thread):
         self.is_authenticated = False  # Trạng thái xác thực
 
     def run(self):
-        """Logic chính để xử lý kết nối khách hàng."""
-        # Đầu tiên, xử lý đăng ký tên người dùng
-        if not self._register_username():
-            self.client_socket.close()
-            return
+        """Logic chính để xử lý kết nối client."""
+        # Sử dụng địa chỉ socket làm tên người dùng ban đầu
+        self._register_initial_username()
         
         with self.server.condition:
             # Vòng lặp này xử lý kết nối ban đầu và đề cử kết nối mới từ hàng chờ.
@@ -62,16 +60,15 @@ class ClientHandler(threading.Thread):
                 
                 # Gửi tin nhắn tới tất cả người dùng khác
                 print(f"[*] Tin nhắn từ {self.username}: {message.strip()}")
-                broadcast_message = f"{self.username}: {message}"
-                self.server.broadcast(broadcast_message, self)
+                self.server.broadcast(message, self)
 
         except (socket.error, ConnectionResetError):
-            pass # Khách hàng ngắt kết nối đột ngột
+            pass  # Client ngắt kết nối đột ngột
         finally:
             self.server._remove_client(self)
 
     def _activate_and_welcome(self):
-        """Kích hoạt khách hàng và gửi tin nhắn chào mừng. Phải được gọi trong khóa điều kiện."""
+        """Kích hoạt client và gửi tin nhắn chào mừng. Phải được gọi trong khóa của self.server.condition."""
         self.is_active = True
         self.server.active_clients.append(self)
         
@@ -79,52 +76,24 @@ class ClientHandler(threading.Thread):
         join_message = f"*** {self.username} đã tham gia chat ***\n"
         self.server.broadcast(join_message, self)
         
-        print(f"[*] Người dùng '{self.username}' đã tham gia chat. Khách hàng hoạt động: {len(self.server.active_clients)}")
+        print(f"[*] Người dùng '{self.username}' đã tham gia chat. Số client đang hoạt động: {len(self.server.active_clients)}")
 
-    def _register_username(self):
-        """Xử lý quá trình đăng ký tên người dùng."""
-        try:
-            # Gửi lời chào và yêu cầu tên người dùng
-            self.client_socket.send("=== Chào mừng đến MMT Chat Server ===\n".encode('utf-8'))
-            self.client_socket.send("Vui lòng nhập tên người dùng của bạn: ".encode('utf-8'))
-            
-            attempts = 0
-            max_attempts = 3
-            
-            while attempts < max_attempts:
-                username = self.client_socket.recv(self.server.buffer_size).decode('utf-8').strip()
-                
-                if not username:
-                    self.client_socket.send("Tên người dùng không thể để trống. Thử lại: ".encode('utf-8'))
-                    attempts += 1
-                    continue
-                
-                # Kiểm tra xem tên người dùng đã được sử dụng chưa
-                if self.server.is_username_taken(username):
-                    self.client_socket.send(f"Tên người dùng '{username}' đã được sử dụng. Thử một tên khác: ".encode('utf-8'))
-                    attempts += 1
-                    continue
-                
-                # Xác thực định dạng tên người dùng
-                if not self._is_valid_username(username):
-                    self.client_socket.send("Định dạng tên người dùng không hợp lệ. Chỉ sử dụng chữ cái, số và dấu gạch dưới (3-20 ký tự): ".encode('utf-8'))
-                    attempts += 1
-                    continue
-                
-                # Tên người dùng hợp lệ và có sẵn
-                self.username = username
-                self.is_authenticated = True
-                self.server.register_username(username, self)
-                self.client_socket.send(f"Chào mừng, {username}!\n".encode('utf-8'))
-                print(f"[*] Người dùng '{username}' đã đăng ký từ {self.client_address}")
-                return True
-            
-            # Đã đạt số lần thử tối đa
-            self.client_socket.send("Quá nhiều lần thử không thành công. Kết nối đã đóng.\n".encode('utf-8'))
-            return False
-            
-        except socket.error:
-            return False
+    def _register_initial_username(self):
+        """Đăng ký tên người dùng ban đầu sử dụng địa chỉ socket."""
+        # Sử dụng địa chỉ IP và port làm tên người dùng ban đầu
+        initial_username = f"{self.client_address[0]}:{self.client_address[1]}"
+        
+        # Nếu tên này đã được sử dụng, thêm số thứ tự
+        counter = 1
+        base_username = initial_username
+        while self.server.is_username_taken(initial_username):
+            initial_username = f"{base_username}_{counter}"
+            counter += 1
+        
+        self.username = initial_username
+        self.is_authenticated = True
+        self.server.register_username(initial_username, self)
+        print(f"[*] Người dùng '{initial_username}' đã kết nối từ {self.client_address}")
 
     def _is_valid_username(self, username):
         """
@@ -176,12 +145,14 @@ class ClientHandler(threading.Thread):
             self.client_socket.send("Tạm biệt!\n".encode('utf-8'))
             self.client_socket.close()
         elif command.startswith('/nick '):
+            old_username = self.username
             new_username = command[6:].strip()
             self._change_username(new_username)
+            self.server.broadcast(f"*** Người dùng `{old_username}` đã đổi tên thành `{self.username}` ***\n", self)
         elif command == '/help':
-            help_text = """Các lệnh có sẵn:
+            help_text = f"""Các lệnh có sẵn:
 /users - Liệt kê tất cả người dùng đang hoạt động
-/nick <tên_mới> - Thay đổi tên người dùng của bạn
+/nick <tên_mới> - Thay đổi tên người dùng của bạn (hiện tại: {self.username})
 /quit - Ngắt kết nối khỏi máy chủ
 /help - Hiển thị tin nhắn trợ giúp này
 
@@ -195,17 +166,15 @@ Tin nhắn riêng tư:
     def _change_username(self, new_username):
         """Xử lý yêu cầu thay đổi tên người dùng."""
         if not self._is_valid_username(new_username):
-            self.client_socket.send("Định dạng tên người dùng không hợp lệ.\n".encode('utf-8'))
+            self.client_socket.send("NICKNAME_REJECTED:Định dạng tên người dùng không hợp lệ.\n".encode('utf-8'))
             return
         
         if self.server.is_username_taken(new_username):
-            self.client_socket.send("Tên người dùng đã được sử dụng.\n".encode('utf-8'))
+            self.client_socket.send("NICKNAME_TAKEN".encode('utf-8'))
             return
         
         old_username = self.username
         self.server.unregister_username(old_username)
         self.username = new_username
         self.server.register_username(new_username, self)
-        
-        self.client_socket.send(f"Tên người dùng đã được thay đổi thành '{new_username}'\n".encode('utf-8'))
-        self.server.broadcast(f"*** {old_username} giờ được biết đến với tên {new_username} ***\n", self)
+        self.client_socket.send(f"NICKNAME_ACCEPTED".encode('utf-8'))
