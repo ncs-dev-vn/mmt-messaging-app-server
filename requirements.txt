@@ -1,0 +1,4 @@
+# Không yêu cầu thư viện ngoài
+# Máy chủ chỉ sử dụng các module thư viện chuẩn Python:
+# - socket
+# - threading
