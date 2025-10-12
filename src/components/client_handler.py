@@ -59,7 +59,7 @@ class ClientHandler(threading.Thread):
                         continue
                 
                 # Gửi tin nhắn tới tất cả người dùng khác
-                print(f"[*] Tin nhắn từ {self.username}: {message.strip()}")
+                print(f"[*] Tin nhắn từ {message.strip()}")
                 self.server.broadcast(message, self)
 
         except (socket.error, ConnectionResetError):
@@ -147,8 +147,9 @@ class ClientHandler(threading.Thread):
         elif command.startswith('/nick '):
             old_username = self.username
             new_username = command[6:].strip()
-            self._change_username(new_username)
-            self.server.broadcast(f"*** Người dùng `{old_username}` đã đổi tên thành `{self.username}` ***\n", self)
+            success = self._change_username(new_username)
+            if success:
+                self.server.broadcast(f"*** Người dùng `{old_username}` đã đổi tên thành `{self.username}` ***\n", self)
         elif command == '/help':
             help_text = f"""Các lệnh có sẵn:
 /users - Liệt kê tất cả người dùng đang hoạt động
@@ -167,14 +168,15 @@ Tin nhắn riêng tư:
         """Xử lý yêu cầu thay đổi tên người dùng."""
         if not self._is_valid_username(new_username):
             self.client_socket.send("NICKNAME_REJECTED:Định dạng tên người dùng không hợp lệ.\n".encode('utf-8'))
-            return
+            return False
         
         if self.server.is_username_taken(new_username):
             self.client_socket.send("NICKNAME_TAKEN".encode('utf-8'))
-            return
+            return False
         
         old_username = self.username
         self.server.unregister_username(old_username)
         self.username = new_username
         self.server.register_username(new_username, self)
         self.client_socket.send(f"NICKNAME_ACCEPTED".encode('utf-8'))
+        return True
