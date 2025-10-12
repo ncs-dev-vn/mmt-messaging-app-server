@@ -54,7 +54,7 @@ class ClientHandler(threading.Thread):
                     continue
 
                 # Xử lý tin nhắn riêng tư với cú pháp @username <tin nhắn>
-                if message.startswith('@'):
+                if '@' in message:
                     if self._handle_private_message(message.strip()):
                         continue
                 
@@ -111,16 +111,21 @@ class ClientHandler(threading.Thread):
                 self.client_socket.send("Định dạng tin nhắn riêng tư không hợp lệ. Sử dụng: @username <tin nhắn>\n".encode('utf-8'))
                 return True
             
-            parts = message.split(' ', 1)
-            target_username = parts[0][1:]  # Loại bỏ ký hiệu @
-            private_message = parts[1]
-            
-            if not target_username:
-                self.client_socket.send("Vui lòng chỉ định tên người dùng. Sử dụng: @username <tin nhắn>\n".encode('utf-8'))
-                return True
+            target_username = None
+            private_message = None
+            parts = message.split(' ')
+            for i in range(len(parts)):
+                if parts[i].startswith('@'):
+                    target_username = parts[i][1:]  # Loại bỏ ký hiệu @
+                    private_message = ' '.join(parts[i+1:])
+                    break
             
             if target_username == self.username:
                 self.client_socket.send("Bạn không thể gửi tin nhắn riêng tư cho chính mình.\n".encode('utf-8'))
+                return True
+            
+            if not target_username or not private_message:
+                self.client_socket.send("Định dạng tin nhắn riêng tư không hợp lệ. Sử dụng: @username <tin nhắn>\n".encode('utf-8'))
                 return True
             
             # Gửi tin nhắn riêng tư tới người dùng

@@ -6,7 +6,7 @@ class ChatServer:
     """
     Máy chủ chat hỗ trợ xử lý đa luồng sử dụng thư viện socket và threading của Python.
     """
-    def __init__(self, host='127.0.0.1', port=12345, max_clients=2, buffer_size=1024):
+    def __init__(self, host='127.0.0.1', port=12345, max_clients=3, buffer_size=1024):
         self.host = host
         self.port = port
         self.max_clients = max_clients
